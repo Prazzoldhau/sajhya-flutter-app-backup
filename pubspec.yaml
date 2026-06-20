@@ -1,0 +1,24 @@
+name: sajhya_patient_app
+description: Sajhya Healthcare Patient Portal - Connect to your health records and exercises.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ✅ Core dependencies for API calls and session management
+  dio: ^5.4.0
+  dio_cookie_manager: ^3.1.0
+  cookie_jar: ^4.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
