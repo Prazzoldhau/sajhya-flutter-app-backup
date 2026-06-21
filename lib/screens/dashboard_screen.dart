@@ -91,16 +91,16 @@ class Prescription {
 // pass the same map (or fetch it separately) into this screen.
 // ---------------------------------------------------------------------------
 
-class PrescriptionsScreen extends StatefulWidget {
+class DashboardScreen extends StatefulWidget {
   final Map<String, dynamic> patientData;
 
-  const PrescriptionsScreen({super.key, required this.patientData});
+  const DashboardScreen({super.key, required this.patientData});
 
   @override
-  State<PrescriptionsScreen> createState() => _PrescriptionsScreenState();
+  State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
+class _DashboardScreenState extends State<DashboardScreen> {
   bool _isExpanded = true;
 
   // Tracks which exercises the patient has marked as done, by index.
