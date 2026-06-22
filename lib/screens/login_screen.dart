@@ -97,7 +97,6 @@
 //   }
 // }
 
-// lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'dashboard_screen.dart';
@@ -165,79 +164,77 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 40),
             child: Form(
               key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Icon(
-                    Icons.health_and_safety,
-                    size: 80,
-                    color: Color(0xFF0A6EBD),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Welcome Back',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Sign in with your Patient Code and Security PIN',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey.shade600,
+              child: SingleChildScrollView(          // ✅ prevents overflow
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Icon(
+                      Icons.health_and_safety,
+                      size: 80,
+                      color: Color(0xFF0A6EBD),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 40),
-
-                  CustomTextField(
-                    controller: _usernameController,
-                    label: 'Patient Code',
-                    prefixIcon: Icons.person,
-                    keyboardType: TextInputType.text,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter your Patient Code';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 20),
-
-                  CustomTextField(
-                    controller: _passwordController,
-                    label: 'Security PIN (Phone)',
-                    prefixIcon: Icons.lock,
-                    obscureText: true,
-                    keyboardType: TextInputType.phone,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter your PIN';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 32),
-
-                  CustomElevatedButton(
-                    onPressed: _login,
-                    label: 'Sign In',
-                    isLoading: _isLoading,
-                    icon: const Icon(Icons.login_rounded),
-                  ),
-
-                  const SizedBox(height: 20),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        // TODO: implement forgot PIN logic
+                    const SizedBox(height: 16),
+                    Text(
+                      'Welcome Back',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Sign in with your Patient Code and Security PIN',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey.shade600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 40),
+                    CustomTextField(
+                      controller: _usernameController,
+                      label: 'Patient Code',
+                      prefixIcon: Icons.person,
+                      keyboardType: TextInputType.text,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter your Patient Code';
+                        }
+                        return null;
                       },
-                      child: const Text('Forgot your PIN?'),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 20),
+                    CustomTextField(
+                      controller: _passwordController,
+                      label: 'Security PIN (Phone)',
+                      prefixIcon: Icons.lock,
+                      obscureText: true,
+                      keyboardType: TextInputType.phone,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter your PIN';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 32),
+                    CustomElevatedButton(
+                      onPressed: _login,
+                      label: 'Sign In',
+                      isLoading: _isLoading,
+                      icon: const Icon(Icons.login_rounded),
+                    ),
+                    const SizedBox(height: 20),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          // TODO: implement forgot PIN logic
+                        },
+                        child: const Text('Forgot your PIN?'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
