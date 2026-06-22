@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'custom_card.dart';   // 👈 add this line
 
 class CustomSectionHeader extends StatelessWidget {
   final String patientName;
