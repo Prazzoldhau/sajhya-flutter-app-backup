@@ -19,7 +19,6 @@ class ApiService {
     _dio.options.connectTimeout = const Duration(seconds: 10);
     _dio.options.receiveTimeout = const Duration(seconds: 10);
     _dio.options.headers['Content-Type'] = 'application/json';
-    // 👇 Important: get raw string to avoid Dio's automatic parsing
     _dio.options.responseType = ResponseType.plain;
   }
 
@@ -31,7 +30,6 @@ class ApiService {
         options: Options(responseType: ResponseType.plain),
       );
 
-      // Check status code
       if (response.statusCode != 200) {
         throw Exception(
           'Server error (${response.statusCode}) – please check the URL or contact support.\n'
@@ -39,16 +37,16 @@ class ApiService {
         );
       }
 
-      // Try to parse the raw response
       final rawBody = response.data as String;
       dynamic parsed;
       try {
         parsed = jsonDecode(rawBody);
       } on FormatException {
-        // Not JSON – show the raw message
+        // ✅ ADDED: show URL and full 300 chars of response
         throw Exception(
-          'Server returned HTML/plain text instead of JSON.\n'
-          'Response start: ${rawBody.substring(0, 100)}...',
+          'HTML instead of JSON.\n'
+          'URL: ${_dio.options.baseUrl}/api/login/\n'
+          'Response:\n${rawBody.length > 300 ? rawBody.substring(0, 300) : rawBody}',
         );
       }
 

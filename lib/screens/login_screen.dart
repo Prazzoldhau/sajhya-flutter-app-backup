@@ -1,102 +1,3 @@
-// import 'package:flutter/material.dart';
-// import '../services/api_service.dart';
-// import 'dashboard_screen.dart';
-
-// class LoginScreen extends StatefulWidget {
-//   const LoginScreen({super.key});
-
-//   @override
-//   State<LoginScreen> createState() => _LoginScreenState();
-// }
-
-// class _LoginScreenState extends State<LoginScreen> {
-//   final TextEditingController _usernameController = TextEditingController();
-//   final TextEditingController _passwordController = TextEditingController();
-//   bool _isLoading = false;
-
-//   Future<void> _login() async {
-//     final username = _usernameController.text.trim();
-//     final password = _passwordController.text.trim();
-
-//     if (username.isEmpty || password.isEmpty) {
-//       ScaffoldMessenger.of(context).showSnackBar(
-//         const SnackBar(content: Text('Please enter both fields')),
-//       );
-//       return;
-//     }
-
-//     setState(() => _isLoading = true);
-
-//     try {
-//       final api = ApiService();
-//       await api.init();
-//       final result = await api.login(username, password);
-
-//       if (mounted) {
-//         Navigator.pushReplacement(
-//           context,
-//           MaterialPageRoute(
-//             builder: (_) => DashboardScreen(patientData: result),
-//           ),
-//         );
-//       }
-//     } catch (e) {
-//       if (mounted) {
-//         ScaffoldMessenger.of(context).showSnackBar(
-//           SnackBar(content: Text(e.toString())),
-//         );
-//       }
-//     } finally {
-//       if (mounted) setState(() => _isLoading = false);
-//     }
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(title: const Text('Patient Login')),
-//       body: Padding(
-//         padding: const EdgeInsets.all(24.0),
-//         child: Column(
-//           mainAxisAlignment: MainAxisAlignment.center,
-//           children: [
-//             TextField(
-//               controller: _usernameController,
-//               decoration: const InputDecoration(
-//                 labelText: 'Patient Code',
-//                 border: OutlineInputBorder(),
-//                 prefixIcon: Icon(Icons.person),
-//               ),
-//               enabled: !_isLoading,
-//             ),
-//             const SizedBox(height: 16),
-//             TextField(
-//               controller: _passwordController,
-//               decoration: const InputDecoration(
-//                 labelText: 'Security PIN (Phone)',
-//                 border: OutlineInputBorder(),
-//                 prefixIcon: Icon(Icons.lock),
-//               ),
-//               obscureText: true,
-//               enabled: !_isLoading,
-//             ),
-//             const SizedBox(height: 24),
-//             SizedBox(
-//               width: double.infinity,
-//               child: ElevatedButton(
-//                 onPressed: _isLoading ? null : _login,
-//                 child: _isLoading
-//                     ? const CircularProgressIndicator()
-//                     : const Text('Login'),
-//               ),
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }
-
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'dashboard_screen.dart';
@@ -115,11 +16,15 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  String _debugInfo = ''; // ✅ ADDED
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _debugInfo = ''; // ✅ ADDED
+    });
     final username = _usernameController.text.trim();
     final password = _passwordController.text.trim();
 
@@ -137,6 +42,9 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } catch (e) {
       if (!mounted) return;
+      setState(() {
+        _debugInfo = e.toString(); // ✅ ADDED
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString()),
@@ -164,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 40),
             child: Form(
               key: _formKey,
-              child: SingleChildScrollView(          // ✅ prevents overflow
+              child: SingleChildScrollView(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -233,6 +141,20 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: const Text('Forgot your PIN?'),
                       ),
                     ),
+                    // ✅ ADDED: debug box shown only on error
+                    if (_debugInfo.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(top: 16),
+                        padding: const EdgeInsets.all(12),
+                        color: Colors.red.shade50,
+                        child: SelectableText(
+                          _debugInfo,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
