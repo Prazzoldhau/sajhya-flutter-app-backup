@@ -1,6 +1,7 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
+import 'theme/app_theme.dart';          // make sure this import is present
 import 'screens/login_screen.dart';
-import 'theme/app_theme.dart';          // <-- add this import
 
 void main() {
   runApp(const MyApp());
@@ -13,7 +14,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Patient Portal',
-      theme: Theme: AppTheme.lightTheme,        // <-- use our custom theme
+      theme: AppTheme.lightTheme,        // <-- no extra "Theme:"
       home: const LoginScreen(),
       debugShowCheckedModeBanner: false,
     );
