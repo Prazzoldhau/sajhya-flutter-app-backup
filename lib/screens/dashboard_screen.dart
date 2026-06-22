@@ -1,41 +1,13 @@
-// import 'package:flutter/material.dart';
-
-// class DashboardScreen extends StatelessWidget {
-//   final Map<String, dynamic> patientData;
-
-//   const DashboardScreen({super.key, required this.patientData});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final name = patientData['patient_name'] ?? 'Patient';
-//     final code = patientData['patient_code'] ?? 'N/A';
-
-//     return Scaffold(
-//       appBar: AppBar(title: const Text('Dashboard')),
-//       body: Center(
-//         child: Column(
-//           mainAxisAlignment: MainAxisAlignment.center,
-//           children: [
-//             Text('Welcome, $name!', style: const TextStyle(fontSize: 24)),
-//             const SizedBox(height: 8),
-//             Text('Patient Code: $code'),
-//             const SizedBox(height: 32),
-//             const Text('Your prescriptions will appear here.'),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }
+// lib/screens/dashboard_screen.dart
 import 'package:flutter/material.dart';
 
-// ---------------------------------------------------------------------------
-// MODELS
-// These mirror the fields used in your Django template
-// (latest_prescription + exercises loop). Adjust field names here if your
-// DRF serializer uses different keys.
-// ---------------------------------------------------------------------------
+// --- Reusable widgets (must exist in /widgets) ---
+import '../widgets/gradient_background.dart';
+import '../widgets/custom_app_bar.dart';
+import '../widgets/custom_card.dart';
+import '../widgets/custom_section_header.dart';
 
+// --- Models (same as before) ---
 class Exercise {
   final String exerciseName;
   final String? exerciseUrl;
@@ -79,18 +51,8 @@ class Prescription {
 }
 
 // ---------------------------------------------------------------------------
-// SCREEN
-// patientData is expected to look like:
-// {
-//   "patient_name": "...",
-//   "diagnosis": "...",
-//   "latest_prescription": { ...see Prescription.fromJson above... }
-// }
-//
-// This mirrors how DashboardScreen already receives patientData, so you can
-// pass the same map (or fetch it separately) into this screen.
+// DASHBOARD SCREEN – now clean and consistent with the rest of the app
 // ---------------------------------------------------------------------------
-
 class DashboardScreen extends StatefulWidget {
   final Map<String, dynamic> patientData;
 
@@ -102,10 +64,6 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _isExpanded = true;
-
-  // Tracks which exercises the patient has marked as done, by index.
-  // This adds the "progress" functionality your web template's progress
-  // bar was set up for but didn't yet have logic to populate.
   final Set<int> _completedExercises = {};
 
   @override
@@ -119,26 +77,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         : null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Exercise Prescriptions')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      appBar: const CustomAppBar(title: 'Exercise Prescriptions'),
+      body: GradientBackground(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         child: ListView(
           children: [
-            // --- Header (mirrors .patient-info block) ---
-            Text(
-              patientName,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Diagnosis: $diagnosis',
-              style: TextStyle(color: Colors.grey[700]),
+            CustomSectionHeader(
+              patientName: patientName,
+              diagnosis: diagnosis,
             ),
             const SizedBox(height: 16),
-
             if (prescription == null)
               _buildEmptyState()
             else
@@ -149,42 +97,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // --- Empty state (mirrors .empty-state block) ---
   Widget _buildEmptyState() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: const [
-            Icon(Icons.assignment_outlined, size: 40, color: Colors.grey),
-            SizedBox(height: 12),
-            Text(
-              'No Prescriptions Yet',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            SizedBox(height: 4),
-            Text(
-              'You do not have any exercise prescriptions.',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
+    return const CustomCard(
+      padding: EdgeInsets.all(32),
+      child: Column(
+        children: [
+          Icon(Icons.assignment_outlined, size: 48, color: Colors.grey),
+          SizedBox(height: 12),
+          Text(
+            'No Prescriptions Yet',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'You do not have any exercise prescriptions.',
+            style: TextStyle(color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
 
-  // --- Prescription card (mirrors .prescription-card block) ---
   Widget _buildPrescriptionCard(Prescription prescription) {
     final total = prescription.exercises.length;
     final completed = _completedExercises.length;
     final progress = total == 0 ? 0.0 : completed / total;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
+    return CustomCard(
+      padding: EdgeInsets.zero, // card itself will handle padding
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- Header: title, status badge, progress, toggle ---
+          // --- Header (clickable to expand/collapse) ---
           InkWell(
             onTap: () => setState(() => _isExpanded = !_isExpanded),
             child: Padding(
@@ -194,10 +139,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Expanded(
                     child: Text(
                       'Prescription ${prescription.createdAt}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                   ),
                   _buildStatusBadge(prescription.status),
@@ -213,6 +157,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             value: progress,
                             minHeight: 6,
                             backgroundColor: Colors.grey[300],
+                            color: Theme.of(context).primaryColor,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -224,13 +169,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Icon(_isExpanded ? Icons.expand_less : Icons.expand_more),
+                  Icon(
+                    _isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: Colors.grey[600],
+                  ),
                 ],
               ),
             ),
           ),
 
-          // --- Body: exercises list + notes ---
+          // --- Expanded body ---
           if (_isExpanded) ...[
             const Divider(height: 1),
             if (prescription.exercises.isEmpty)
@@ -239,6 +187,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Text(
                   'No exercises assigned in this prescription.',
                   textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
                 ),
               )
             else
@@ -253,7 +202,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   return ListTile(
                     leading: exercise.exerciseUrl != null
                         ? ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(8),
                             child: Image.network(
                               exercise.exerciseUrl!,
                               width: 56,
@@ -264,7 +213,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           )
                         : _buildNoImagePlaceholder(),
-                    title: Text(exercise.exerciseName),
+                    title: Text(
+                      exercise.exerciseName,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
                     trailing: Checkbox(
                       value: isDone,
                       onChanged: (checked) {
@@ -276,6 +228,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           }
                         });
                       },
+                      activeColor: Theme.of(context).primaryColor,
                     ),
                   );
                 },
@@ -287,20 +240,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE3F2FD),
-                  borderRadius: BorderRadius.circular(6),
+                  color: Theme.of(context).primaryColor.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).primaryColor.withOpacity(0.2),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      '📋 Prescription Notes:',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    Text(
+                      '📋 Prescription Notes',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).primaryColor,
+                      ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(prescription.notes!),
+                    const SizedBox(height: 6),
+                    Text(
+                      prescription.notes!,
+                      style: const TextStyle(fontSize: 14),
+                    ),
                   ],
                 ),
               ),
@@ -317,9 +279,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       height: 56,
       decoration: BoxDecoration(
         color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: const Icon(Icons.image_not_supported, color: Colors.grey),
+      child: Icon(Icons.image_not_supported, color: Colors.grey[400]),
     );
   }
 
@@ -336,14 +298,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         color = Colors.green;
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         status[0].toUpperCase() + status.substring(1),
-        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
