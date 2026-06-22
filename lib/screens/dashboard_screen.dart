@@ -1,7 +1,6 @@
 // lib/screens/dashboard_screen.dart
 import 'package:flutter/material.dart';
 
-// --- Reusable widgets ---
 import '../widgets/gradient_background.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/custom_card.dart';
@@ -51,7 +50,7 @@ class Prescription {
 }
 
 // ---------------------------------------------------------------------------
-// DASHBOARD SCREEN with HORIZONTAL EXERCISE SCROLL
+// DASHBOARD SCREEN – NO PRESCRIPTION BANNER, JUST FEED
 // ---------------------------------------------------------------------------
 class DashboardScreen extends StatefulWidget {
   final Map<String, dynamic> patientData;
@@ -63,8 +62,6 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  bool _isExpanded = true;
-
   @override
   Widget build(BuildContext context) {
     final patientName = widget.patientData['patient_name'] ?? 'Patient';
@@ -88,8 +85,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 16),
             if (prescription == null)
               _buildEmptyState()
-            else
-              _buildPrescriptionCard(prescription),
+            else ...[
+              // --- Show exercise feed directly ---
+              _buildExerciseFeed(prescription.exercises),
+              // --- Show notes if any, as a separate card ---
+              if (prescription.notes != null &&
+                  prescription.notes!.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: _buildNotesCard(prescription.notes!),
+                ),
+            ],
           ],
         ),
       ),
@@ -118,191 +124,136 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildPrescriptionCard(Prescription prescription) {
-    return CustomCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // --- Header (clickable) ---
-          InkWell(
-            onTap: () => setState(() => _isExpanded = !_isExpanded),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Prescription ${prescription.createdAt}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+  // --- Vertical feed (no header) ---
+  Widget _buildExerciseFeed(List<Exercise> exercises) {
+    if (exercises.isEmpty) {
+      return const CustomCard(
+        child: Text(
+          'No exercises assigned in this prescription.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: exercises.length,
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      itemBuilder: (context, index) {
+        final exercise = exercises[index];
+        return _buildFeedItem(exercise);
+      },
+    );
+  }
+
+  // --- Each feed item: large image with overlay caption ---
+  Widget _buildFeedItem(Exercise exercise) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final imageHeight = screenHeight * 0.65;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          children: [
+            // --- Image ---
+            exercise.exerciseUrl != null
+                ? Image.network(
+                    exercise.exerciseUrl!,
+                    width: double.infinity,
+                    height: imageHeight,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      height: imageHeight,
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.image_not_supported, color: Colors.grey),
                     ),
+                  )
+                : Container(
+                    height: imageHeight,
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.image_not_supported, color: Colors.grey),
                   ),
-                  _buildStatusBadge(prescription.status),
-                  const SizedBox(width: 8),
-                  Icon(
-                    _isExpanded ? Icons.expand_less : Icons.expand_more,
-                    color: Colors.grey[600],
+
+            // --- Overlay gradient ---
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 100,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.7),
+                      Colors.transparent,
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
-          ),
 
-          // --- Expanded body with horizontal exercise carousel ---
-          if (_isExpanded) ...[
-            const Divider(height: 1),
-            if (prescription.exercises.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(20),
-                child: Text(
-                  'No exercises assigned in this prescription.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
-                ),
-              )
-            else
-              _buildExerciseCarousel(prescription.exercises),
-
-            // --- Notes section (unchanged) ---
-            if (prescription.notes != null &&
-                prescription.notes!.trim().isNotEmpty)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Theme.of(context).primaryColor.withOpacity(0.2),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '📋 Prescription Notes',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      prescription.notes!,
-                      style: const TextStyle(fontSize: 14),
+            // --- Caption ---
+            Positioned(
+              bottom: 16,
+              left: 16,
+              right: 16,
+              child: Text(
+                exercise.exerciseName,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black45,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
                     ),
                   ],
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-            const SizedBox(height: 8),
+            ),
           ],
-        ],
+        ),
       ),
     );
   }
 
-  // --- Horizontal carousel of exercises (Instagram/Facebook style) ---
-  Widget _buildExerciseCarousel(List<Exercise> exercises) {
-    return SizedBox(
-      height: 220, // fixed height for the carousel
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: exercises.length,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-        itemBuilder: (context, index) {
-          final exercise = exercises[index];
-          return _buildExerciseItem(exercise);
-        },
-      ),
-    );
-  }
-
-  Widget _buildExerciseItem(Exercise exercise) {
-    return Container(
-      width: 150,
-      margin: const EdgeInsets.symmetric(horizontal: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+  // --- Notes card (optional) ---
+  Widget _buildNotesCard(String notes) {
+    return CustomCard(
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image – 120x120 or similar
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            child: exercise.exerciseUrl != null
-                ? Image.network(
-                    exercise.exerciseUrl!,
-                    height: 120,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildNoImagePlaceholder(height: 120),
-                  )
-                : _buildNoImagePlaceholder(height: 120),
-          ),
-          // Caption
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              exercise.exerciseName,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-              ),
+          Text(
+            '📋 Prescription Notes',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).primaryColor,
             ),
           ),
+          const SizedBox(height: 6),
+          Text(notes, style: const TextStyle(fontSize: 14)),
         ],
-      ),
-    );
-  }
-
-  Widget _buildNoImagePlaceholder({double height = 120}) {
-    return Container(
-      height: height,
-      width: double.infinity,
-      color: Colors.grey[200],
-      child: Icon(Icons.image_not_supported, color: Colors.grey[400]),
-    );
-  }
-
-  Widget _buildStatusBadge(String status) {
-    Color color;
-    switch (status.toLowerCase()) {
-      case 'completed':
-        color = Colors.blue;
-        break;
-      case 'paused':
-        color = Colors.orange;
-        break;
-      default:
-        color = Colors.green;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        status[0].toUpperCase() + status.substring(1),
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
       ),
     );
   }
