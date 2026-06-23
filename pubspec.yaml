@@ -9,11 +9,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-  # ✅ Core dependencies for API calls and session management
   dio: ^5.4.0
   dio_cookie_manager: ^3.1.0
   cookie_jar: ^4.0.0
+  path_provider: ^2.0.0
 
 dev_dependencies:
   flutter_test:
