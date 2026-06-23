@@ -91,6 +91,11 @@ class ApiService {
       throw Exception('Not logged in');
     }
   }
+  Future<String> debugCookies() async {
+    final cookies = await _cookieJar.loadForRequest(Uri.parse(baseUrl));
+    if (cookies.isEmpty) return 'NO COOKIES FOUND';
+    return cookies.map((c) => '${c.name}=${c.value}').join(', ');
+  }
 
   Future<void> logout() async {
     try {
