@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
-import 'screens/splash_screen.dart';   // 👈 import
+import 'screens/splash_screen.dart';   // 👈 start with SplashScreen
 
 void main() {
   runApp(const MyApp());
@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Sajhya',
       theme: AppTheme.lightTheme,
-      home: const SplashScreen(),   // 👈 changed
+      home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

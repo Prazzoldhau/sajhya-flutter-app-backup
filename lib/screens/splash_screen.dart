@@ -1,3 +1,5 @@
+// lib/screens/splash_screen.dart
+import 'dart:convert';   // ✅ needed for jsonDecode
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
@@ -22,30 +24,24 @@ class _SplashScreenState extends State<SplashScreen> {
       final api = ApiService();
       await api.init();
 
-      // Call a protected endpoint – e.g., /api/me/ (returns patient data if logged in)
-      final response = await api._dio.get('/api/me/');
-      if (response.statusCode == 200) {
-        // Parsed patient data – navigate to Dashboard
-        final data = jsonDecode(response.data);
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => DashboardScreen(patientData: data)),
-        );
-      } else {
-        _goToLogin();
-      }
-    } catch (e) {
-      _goToLogin();
-    }
-  }
+      // ✅ Use the public method – no access to private _dio
+      final patientData = await api.getCurrentUser();
 
-  void _goToLogin() {
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DashboardScreen(patientData: patientData),
+        ),
+      );
+    } catch (e) {
+      // Any error → user is not logged in
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
   }
 
   @override

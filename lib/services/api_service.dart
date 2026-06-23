@@ -2,7 +2,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
-import 'package:cookie_jar/persist_cookie_jar.dart';
+import 'package:cookie_jar/cookie_jar.dart';          // ✅ main import (includes PersistCookieJar)
 import 'package:path_provider/path_provider.dart';
 
 class ApiService {
@@ -14,10 +14,9 @@ class ApiService {
   static const String baseUrl = 'https://sajhya.com/patient-app';
 
   Future<void> init() async {
-    // --- Persist cookies to disk ---
     final appDocDir = await getApplicationDocumentsDirectory();
     final cookieJar = PersistCookieJar(
-      storage: FileStorage('${appDocDir.path}/.cookies/'),
+      storage: FileStorage('${appDocDir.path}/.cookies/'), // cookies saved to disk
     );
     _dio.interceptors.add(CookieManager(cookieJar));
 
@@ -25,8 +24,7 @@ class ApiService {
     _dio.options.connectTimeout = const Duration(seconds: 10);
     _dio.options.receiveTimeout = const Duration(seconds: 10);
     _dio.options.headers['Content-Type'] = 'application/json';
-    // Get raw response so we can handle HTML/JSON manually
-    _dio.options.responseType = ResponseType.plain;
+    _dio.options.responseType = ResponseType.plain; // raw string, we'll parse manually
   }
 
   Future<Map<String, dynamic>> login(String username, String password) async {
@@ -36,15 +34,11 @@ class ApiService {
         data: {'username': username, 'password': password},
       );
 
-      // response.data is a String because of ResponseType.plain
       final rawBody = response.data as String;
-
-      // Try to parse as JSON
       dynamic parsed;
       try {
         parsed = jsonDecode(rawBody);
       } catch (_) {
-        // Not JSON – maybe HTML (bot protection)
         throw Exception(
           'Server returned an HTML page.\n'
           'This might be a temporary issue or a bot protection.\n'
@@ -66,10 +60,10 @@ class ApiService {
     }
   }
 
-  // Optional: method to check if user is logged in (called from SplashScreen)
+  // Used by SplashScreen to check if user is already logged in
   Future<Map<String, dynamic>> getCurrentUser() async {
     try {
-      final response = await _dio.get('/api/me/'); // adjust endpoint
+      final response = await _dio.get('/api/me/');  // adjust endpoint if needed
       final rawBody = response.data as String;
       return jsonDecode(rawBody) as Map<String, dynamic>;
     } catch (e) {
