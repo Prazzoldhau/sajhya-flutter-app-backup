@@ -1,12 +1,11 @@
 // lib/screens/dashboard_screen.dart
 import 'package:flutter/material.dart';
 
-import '../widgets/gradient_background.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/custom_section_header.dart';
 
-// --- Models (same) ---
+// --- Models (unchanged) ---
 class Exercise {
   final String exerciseName;
   final String? exerciseUrl;
@@ -50,7 +49,7 @@ class Prescription {
 }
 
 // ---------------------------------------------------------------------------
-// DASHBOARD SCREEN – NO PRESCRIPTION BANNER, JUST FEED
+// DASHBOARD SCREEN – YOUTUBE STYLE (dark background, thumbnails + titles)
 // ---------------------------------------------------------------------------
 class DashboardScreen extends StatefulWidget {
   final Map<String, dynamic> patientData;
@@ -73,30 +72,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
         : null;
 
     return Scaffold(
-      appBar: const CustomAppBar(title: 'Exercise Prescriptions'),
-      body: GradientBackground(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        child: ListView(
-          children: [
-            CustomSectionHeader(
-              patientName: patientName,
-              diagnosis: diagnosis,
-            ),
-            const SizedBox(height: 16),
-            if (prescription == null)
-              _buildEmptyState()
-            else ...[
-              // --- Show exercise feed directly ---
-              _buildExerciseFeed(prescription.exercises),
-              // --- Show notes if any, as a separate card ---
-              if (prescription.notes != null &&
-                  prescription.notes!.trim().isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: _buildNotesCard(prescription.notes!),
+      // Dark app bar matching YouTube style
+      appBar: AppBar(
+        title: const Text(
+          'Exercise Prescriptions',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.black,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      // Dark background (like YouTube dark theme)
+      body: Container(
+        color: Colors.black,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: ListView(
+              children: [
+                // Patient header – keep it readable on dark background
+                CustomSectionHeader(
+                  patientName: patientName,
+                  diagnosis: diagnosis,
                 ),
-            ],
-          ],
+                const SizedBox(height: 16),
+                if (prescription == null)
+                  _buildEmptyState()
+                else ...[
+                  _buildExerciseFeed(prescription.exercises),
+                  if (prescription.notes != null &&
+                      prescription.notes!.trim().isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: _buildNotesCard(prescription.notes!),
+                    ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -104,6 +117,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildEmptyState() {
     return const CustomCard(
+      color: Colors.grey,
       padding: EdgeInsets.all(32),
       child: Column(
         children: [
@@ -111,7 +125,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           SizedBox(height: 12),
           Text(
             'No Prescriptions Yet',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
           ),
           SizedBox(height: 4),
           Text(
@@ -124,14 +138,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // --- Vertical feed (no header) ---
   Widget _buildExerciseFeed(List<Exercise> exercises) {
     if (exercises.isEmpty) {
       return const CustomCard(
+        color: Colors.grey,
         child: Text(
-          'No exercises assigned in this prescription.',
+          'No exercises assigned.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.grey),
+          style: TextStyle(color: Colors.white70),
         ),
       );
     }
@@ -147,99 +161,62 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // --- Each feed item: large image with overlay caption ---
+  // --- YouTube-style feed item: thumbnail + title below ---
   Widget _buildFeedItem(Exercise exercise) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final imageHeight = screenHeight * 0.65;
+    // 16:9 aspect ratio – width is screen width minus padding, so we compute height.
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = screenWidth - 24; // 12 padding on each side
+    final thumbnailHeight = cardWidth * 9 / 16; // 16:9
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          children: [
-            // --- Image ---
-            exercise.exerciseUrl != null
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // --- Thumbnail ---
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: exercise.exerciseUrl != null
                 ? Image.network(
                     exercise.exerciseUrl!,
                     width: double.infinity,
-                    height: imageHeight,
-                    fit: BoxFit.cover,
+                    height: thumbnailHeight,
+                    fit: BoxFit.cover, // fills the width, crops if needed
                     errorBuilder: (_, __, ___) => Container(
-                      height: imageHeight,
-                      color: Colors.grey[200],
+                      height: thumbnailHeight,
+                      color: Colors.grey[800],
                       child: const Icon(Icons.image_not_supported, color: Colors.grey),
                     ),
                   )
                 : Container(
-                    height: imageHeight,
-                    color: Colors.grey[200],
+                    height: thumbnailHeight,
+                    color: Colors.grey[800],
                     child: const Icon(Icons.image_not_supported, color: Colors.grey),
                   ),
-
-            // --- Overlay gradient ---
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                height: 100,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      Colors.black.withOpacity(0.7),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
+          ),
+          const SizedBox(height: 8),
+          // --- Title (white text on dark background) ---
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              exercise.exerciseName,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-
-            // --- Caption ---
-            Positioned(
-              bottom: 16,
-              left: 16,
-              right: 16,
-              child: Text(
-                exercise.exerciseName,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black45,
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  // --- Notes card (optional) ---
   Widget _buildNotesCard(String notes) {
     return CustomCard(
+      color: Colors.grey[800]!, // dark background for notes
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,11 +225,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             '📋 Prescription Notes',
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: Theme.of(context).primaryColor,
+              color: Colors.white70,
             ),
           ),
           const SizedBox(height: 6),
-          Text(notes, style: const TextStyle(fontSize: 14)),
+          Text(
+            notes,
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
+          ),
         ],
       ),
     );
