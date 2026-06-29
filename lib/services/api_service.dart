@@ -97,6 +97,25 @@ class ApiService {
     return cookies.map((c) => '${c.name}=${c.value}').join(', ');
   }
 
+  Future<void> submitFeedback(int exerciseId, String feedbackType, String note) async {
+    try {
+      final response = await _dio.post(
+        '/api/exercise/$exerciseId/feedback/',
+        data: {'feedback_type': feedbackType, 'note': note},
+      );
+      final rawBody = response.data as String;
+      final parsed = jsonDecode(rawBody) as Map<String, dynamic>;
+      if (parsed['success'] != true) {
+        throw Exception(parsed['error'] ?? 'Failed to submit feedback');
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        throw Exception('Feedback failed (${e.response?.statusCode})');
+      }
+      throw Exception('Network error: ${e.message}');
+    }
+  }
+
   Future<void> logout() async {
     try {
       final csrf = await _getCsrfToken();

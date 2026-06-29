@@ -1,21 +1,39 @@
 // lib/screens/dashboard_screen.dart
 import 'package:flutter/material.dart';
 
-import '../widgets/custom_app_bar.dart';
-import '../widgets/custom_card.dart';
+import '../services/api_service.dart';
 import '../widgets/custom_section_header.dart';
+import '../widgets/custom_card.dart';
 
-// --- Models (unchanged) ---
+// --- Models ---
 class Exercise {
+  final int id;
   final String exerciseName;
   final String? exerciseUrl;
+  final int sets;
+  final int reps;
+  final int holdTimeSec;
+  final int restTimeSec;
 
-  Exercise({required this.exerciseName, this.exerciseUrl});
+  Exercise({
+    required this.id,
+    required this.exerciseName,
+    this.exerciseUrl,
+    required this.sets,
+    required this.reps,
+    required this.holdTimeSec,
+    required this.restTimeSec,
+  });
 
   factory Exercise.fromJson(Map<String, dynamic> json) {
     return Exercise(
+      id: json['id'] ?? 0,
       exerciseName: json['exercise_name'] ?? 'Unnamed exercise',
       exerciseUrl: json['exercise_url'],
+      sets: json['sets'] ?? 3,
+      reps: json['reps'] ?? 10,
+      holdTimeSec: json['hold_time_sec'] ?? 0,
+      restTimeSec: json['rest_time_sec'] ?? 60,
     );
   }
 }
@@ -49,7 +67,7 @@ class Prescription {
 }
 
 // ---------------------------------------------------------------------------
-// DASHBOARD SCREEN – YOUTUBE STYLE (dark background, thumbnails + titles)
+// DASHBOARD SCREEN
 // ---------------------------------------------------------------------------
 class DashboardScreen extends StatefulWidget {
   final Map<String, dynamic> patientData;
@@ -72,7 +90,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         : null;
 
     return Scaffold(
-      // Dark app bar matching YouTube style
       appBar: AppBar(
         title: const Text(
           'Exercise Prescriptions',
@@ -82,7 +99,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      // Dark background (like YouTube dark theme)
       body: Container(
         color: Colors.black,
         child: SafeArea(
@@ -90,7 +106,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: ListView(
               children: [
-                // Patient header – keep it readable on dark background
                 CustomSectionHeader(
                   patientName: patientName,
                   diagnosis: diagnosis,
@@ -154,26 +169,90 @@ class _DashboardScreenState extends State<DashboardScreen> {
       physics: const NeverScrollableScrollPhysics(),
       itemCount: exercises.length,
       padding: const EdgeInsets.symmetric(vertical: 4),
-      itemBuilder: (context, index) {
-        final exercise = exercises[index];
-        return _buildFeedItem(exercise);
-      },
+      itemBuilder: (context, index) => _ExerciseFeedItem(exercise: exercises[index]),
     );
   }
 
-  // --- YouTube-style feed item: thumbnail + title below ---
-  Widget _buildFeedItem(Exercise exercise) {
-    // 16:9 aspect ratio – width is screen width minus padding, so we compute height.
-    final screenWidth = MediaQuery.of(context).size.width;
-    final cardWidth = screenWidth - 24; // 12 padding on each side
-    final thumbnailHeight = cardWidth * 9 / 16; // 16:9
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+  Widget _buildNotesCard(String notes) {
+    return CustomCard(
+      color: Colors.grey[800]!,
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- Thumbnail ---
+          const Text(
+            '📋 Prescription Notes',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white70),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            notes,
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// EXERCISE FEED ITEM – stateful for done/feedback state
+// ---------------------------------------------------------------------------
+class _ExerciseFeedItem extends StatefulWidget {
+  final Exercise exercise;
+  const _ExerciseFeedItem({required this.exercise});
+
+  @override
+  State<_ExerciseFeedItem> createState() => _ExerciseFeedItemState();
+}
+
+class _ExerciseFeedItemState extends State<_ExerciseFeedItem> {
+  bool _isDone = false;
+  String? _selectedFeedback; // 'normal' | 'hard' | 'painful' | 'increased_symptom'
+  bool _isSubmitted = false;
+  bool _isSubmitting = false;
+  final TextEditingController _noteController = TextEditingController();
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_selectedFeedback == null) return;
+    setState(() => _isSubmitting = true);
+    try {
+      await ApiService().submitFeedback(
+        widget.exercise.id,
+        _selectedFeedback!,
+        _noteController.text.trim(),
+      );
+      if (mounted) setState(() => _isSubmitted = true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.redAccent),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final exercise = widget.exercise;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = screenWidth - 24;
+    final thumbnailHeight = cardWidth * 9 / 16;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Thumbnail
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: exercise.exerciseUrl != null
@@ -181,21 +260,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     exercise.exerciseUrl!,
                     width: double.infinity,
                     height: thumbnailHeight,
-                    fit: BoxFit.cover, // fills the width, crops if needed
-                    errorBuilder: (_, __, ___) => Container(
-                      height: thumbnailHeight,
-                      color: Colors.grey[800],
-                      child: const Icon(Icons.image_not_supported, color: Colors.grey),
-                    ),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _noImage(thumbnailHeight),
                   )
-                : Container(
-                    height: thumbnailHeight,
-                    color: Colors.grey[800],
-                    child: const Icon(Icons.image_not_supported, color: Colors.grey),
-                  ),
+                : _noImage(thumbnailHeight),
           ),
           const SizedBox(height: 8),
-          // --- Title (white text on dark background) ---
+
+          // Title
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
@@ -209,31 +281,233 @@ class _DashboardScreenState extends State<DashboardScreen> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          const SizedBox(height: 6),
+
+          // Dose row
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 4,
+              children: [
+                _doseChip('Sets', '${exercise.sets}'),
+                _doseChip('Reps', '${exercise.reps}'),
+                if (exercise.holdTimeSec > 0)
+                  _doseChip('Hold', '${exercise.holdTimeSec}s'),
+                _doseChip('Rest', '${exercise.restTimeSec}s'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Mark Done button or feedback panel
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: _isDone ? _buildFeedbackPanel() : _buildMarkDoneButton(),
+          ),
+
+          const SizedBox(height: 8),
+          Divider(color: Colors.grey[850], thickness: 1),
         ],
       ),
     );
   }
 
-  Widget _buildNotesCard(String notes) {
-    return CustomCard(
-      color: Colors.grey[800]!, // dark background for notes
-      padding: const EdgeInsets.all(16),
+  Widget _noImage(double height) {
+    return Container(
+      height: height,
+      color: Colors.grey[800],
+      child: const Icon(Icons.image_not_supported, color: Colors.grey),
+    );
+  }
+
+  Widget _doseChip(String label, String value) {
+    return RichText(
+      text: TextSpan(
+        children: [
+          TextSpan(
+            text: '$label: ',
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          TextSpan(
+            text: value,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMarkDoneButton() {
+    return OutlinedButton.icon(
+      onPressed: () => setState(() => _isDone = true),
+      icon: const Icon(Icons.check_circle_outline, size: 18),
+      label: const Text('Mark as Done'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.greenAccent,
+        side: const BorderSide(color: Colors.greenAccent),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        textStyle: const TextStyle(fontSize: 13),
+      ),
+    );
+  }
+
+  Widget _buildFeedbackPanel() {
+    if (_isSubmitted) {
+      return const Row(
+        children: [
+          Icon(Icons.check_circle, color: Colors.greenAccent, size: 18),
+          SizedBox(width: 6),
+          Text(
+            'Feedback recorded',
+            style: TextStyle(color: Colors.greenAccent, fontSize: 13),
+          ),
+        ],
+      );
+    }
+
+    final needsNote = _selectedFeedback != null && _selectedFeedback != 'normal';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[800]!),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '📋 Prescription Notes',
+          const Text(
+            'How did it feel?',
             style: TextStyle(
-              fontWeight: FontWeight.bold,
               color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            notes,
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
+          const SizedBox(height: 10),
+
+          // Feedback buttons
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _feedbackBtn('normal', 'Normal', Colors.green),
+              _feedbackBtn('hard', 'Hard', Colors.amber),
+              _feedbackBtn('painful', 'Painful', Colors.orange),
+              _feedbackBtn('increased_symptom', 'Symptoms Worsening', Colors.red),
+            ],
+          ),
+
+          // Note field — only for Hard / Painful / Increased Symptom
+          if (needsNote) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _noteController,
+              maxLength: 300,
+              maxLines: 2,
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Describe what you felt...',
+                hintStyle: TextStyle(color: Colors.grey[600], fontSize: 13),
+                filled: true,
+                fillColor: Colors.grey[800],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+                counterStyle: TextStyle(color: Colors.grey[600], fontSize: 11),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 12),
+
+          // Actions
+          Row(
+            children: [
+              ElevatedButton(
+                onPressed: _selectedFeedback == null || _isSubmitting ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey[700],
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: const TextStyle(fontSize: 13),
+                ),
+                child: _isSubmitting
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Submit'),
+              ),
+              const SizedBox(width: 12),
+              TextButton(
+                onPressed: () => setState(() {
+                  _isDone = false;
+                  _selectedFeedback = null;
+                  _noteController.clear();
+                }),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Skip',
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                ),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _feedbackBtn(String value, String label, Color color) {
+    final selected = _selectedFeedback == value;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedFeedback = value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? color.withOpacity(0.2) : Colors.transparent,
+          border: Border.all(
+            color: selected ? color : Colors.grey[700]!,
+            width: selected ? 1.5 : 1,
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? color : Colors.grey[500],
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
       ),
     );
   }
