@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../widgets/custom_section_header.dart';
 import '../widgets/custom_card.dart';
+import 'marketplace_screen.dart';
+import 'physio_contact_screen.dart';
 
 // --- Models ---
 class Exercise {
@@ -91,13 +93,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Exercise Prescriptions',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: Text(patientName, style: const TextStyle(color: Colors.white)),
         backgroundColor: Colors.black,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white70, size: 20),
+            onPressed: () async {
+              await ApiService().logout();
+              if (mounted) Navigator.pushReplacementNamed(context, '/');
+            },
+          ),
+        ],
       ),
       body: Container(
         color: Colors.black,
@@ -106,17 +114,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: ListView(
               children: [
-                CustomSectionHeader(
-                  patientName: patientName,
-                  diagnosis: diagnosis,
+                CustomSectionHeader(patientName: patientName, diagnosis: diagnosis),
+                const SizedBox(height: 12),
+                // Quick action row
+                Row(
+                  children: [
+                    Expanded(
+                      child: _quickAction(
+                        icon: Icons.storefront_outlined,
+                        label: 'Marketplace',
+                        color: const Color(0xFF0A6EBD),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => MarketplaceScreen(patientData: widget.patientData)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _quickAction(
+                        icon: Icons.person_pin_outlined,
+                        label: 'My Physio',
+                        color: const Color(0xFF6C63FF),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const PhysioContactScreen()),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
+                // Exercise section header
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Exercise Prescriptions',
+                    style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+                  ),
+                ),
                 if (prescription == null)
                   _buildEmptyState()
                 else ...[
                   _buildExerciseFeed(prescription.exercises),
-                  if (prescription.notes != null &&
-                      prescription.notes!.trim().isNotEmpty)
+                  if (prescription.notes != null && prescription.notes!.trim().isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 12),
                       child: _buildNotesCard(prescription.notes!),
@@ -125,6 +166,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _quickAction({required IconData icon, required String label, required Color color, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 26),
+            const SizedBox(height: 6),
+            Text(label, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600)),
+          ],
         ),
       ),
     );

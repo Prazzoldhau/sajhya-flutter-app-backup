@@ -124,9 +124,70 @@ class ApiService {
         options: Options(headers: {'X-CSRFToken': csrf}),
       );
     } catch (_) {
-      // even if server call fails, clear cookies locally
     } finally {
       await _cookieJar.deleteAll();
     }
+  }
+
+  // ── Marketplace ──────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getCategories() async {
+    final r = await _dio.get('/api/categories/');
+    final d = jsonDecode(r.data as String);
+    return List<Map<String, dynamic>>.from(d['categories']);
+  }
+
+  Future<List<Map<String, dynamic>>> getProducts({int? categoryId, String? search}) async {
+    final params = <String, dynamic>{};
+    if (categoryId != null) params['category'] = categoryId;
+    if (search != null && search.isNotEmpty) params['search'] = search;
+    final r = await _dio.get('/api/products/', queryParameters: params);
+    final d = jsonDecode(r.data as String);
+    return List<Map<String, dynamic>>.from(d['products']);
+  }
+
+  Future<Map<String, dynamic>> getCart() async {
+    final r = await _dio.get('/api/cart/');
+    return jsonDecode(r.data as String) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> addToCart(int productId) async {
+    final csrf = await _getCsrfToken();
+    final r = await _dio.post(
+      '/api/cart/add/$productId/',
+      options: Options(headers: {'X-CSRFToken': csrf}),
+    );
+    return jsonDecode(r.data as String) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateCart(int productId, int quantity) async {
+    final csrf = await _getCsrfToken();
+    final r = await _dio.post(
+      '/api/cart/update/',
+      data: {'product_id': productId, 'quantity': quantity},
+      options: Options(headers: {'X-CSRFToken': csrf}),
+    );
+    return jsonDecode(r.data as String) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> placeOrder({required String address, String note = ''}) async {
+    final csrf = await _getCsrfToken();
+    final r = await _dio.post(
+      '/api/order/',
+      data: {'delivery_address': address, 'notes': note},
+      options: Options(headers: {'X-CSRFToken': csrf}),
+    );
+    return jsonDecode(r.data as String) as Map<String, dynamic>;
+  }
+
+  Future<List<Map<String, dynamic>>> getOrders() async {
+    final r = await _dio.get('/api/orders/');
+    final d = jsonDecode(r.data as String);
+    return List<Map<String, dynamic>>.from(d['orders']);
+  }
+
+  Future<Map<String, dynamic>?> getPhysio() async {
+    final r = await _dio.get('/api/physio/');
+    final d = jsonDecode(r.data as String) as Map<String, dynamic>;
+    return d['physio'] as Map<String, dynamic>?;
   }
 }
