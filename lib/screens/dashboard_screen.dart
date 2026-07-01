@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
-import '../widgets/custom_section_header.dart';
 import '../widgets/custom_card.dart';
 import 'marketplace_screen.dart';
 import 'physio_contact_screen.dart';
@@ -114,8 +113,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: ListView(
               children: [
-                CustomSectionHeader(patientName: patientName, diagnosis: diagnosis),
-                const SizedBox(height: 12),
                 // Quick action row
                 Row(
                   children: [
