@@ -314,15 +314,20 @@ class _ExerciseFeedItemState extends State<_ExerciseFeedItem> {
           // Thumbnail
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: exercise.exerciseUrl != null
-                ? Image.network(
-                    exercise.exerciseUrl!,
-                    width: double.infinity,
-                    height: thumbnailHeight,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _noImage(thumbnailHeight),
-                  )
-                : _noImage(thumbnailHeight),
+            child: Container(
+              width: double.infinity,
+              height: thumbnailHeight,
+              color: Colors.grey[900],
+              child: exercise.exerciseUrl != null
+                  ? Image.network(
+                      exercise.exerciseUrl!,
+                      width: double.infinity,
+                      height: thumbnailHeight,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => _noImage(thumbnailHeight),
+                    )
+                  : _noImage(thumbnailHeight),
+            ),
           ),
           const SizedBox(height: 8),
 

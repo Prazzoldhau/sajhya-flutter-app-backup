@@ -1,7 +1,7 @@
 // lib/widgets/custom_text_field.dart
 import 'package:flutter/material.dart';
 
-class CustomTextField extends StatelessWidget {
+class CustomTextField extends StatefulWidget {
   final TextEditingController controller;
   final String label;
   final IconData? prefixIcon;
@@ -20,15 +20,37 @@ class CustomTextField extends StatelessWidget {
   });
 
   @override
+  State<CustomTextField> createState() => _CustomTextFieldState();
+}
+
+class _CustomTextFieldState extends State<CustomTextField> {
+  late bool _hidden;
+
+  @override
+  void initState() {
+    super.initState();
+    _hidden = widget.obscureText;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      validator: validator,
+      controller: widget.controller,
+      obscureText: _hidden,
+      keyboardType: widget.keyboardType,
+      validator: widget.validator,
       decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
+        labelText: widget.label,
+        prefixIcon: widget.prefixIcon != null ? Icon(widget.prefixIcon) : null,
+        suffixIcon: widget.obscureText
+            ? IconButton(
+                icon: Icon(
+                  _hidden ? Icons.visibility_off : Icons.visibility,
+                  color: Colors.grey,
+                ),
+                onPressed: () => setState(() => _hidden = !_hidden),
+              )
+            : null,
       ),
     );
   }
