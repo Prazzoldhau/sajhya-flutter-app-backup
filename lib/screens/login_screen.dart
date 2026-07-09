@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'dashboard_screen.dart';
+import 'qr_scanner_screen.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/custom_elevated_button.dart';
 
@@ -132,14 +133,27 @@ class _LoginScreenState extends State<LoginScreen> {
                       icon: const Icon(Icons.login_rounded),
                     ),
                     const SizedBox(height: 20),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          // TODO: implement forgot PIN logic
-                        },
-                        child: const Text('Forgot your PIN?'),
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const QRScannerScreen()),
+                          ),
+                          icon: const Icon(Icons.qr_code_scanner, size: 18),
+                          label: const Text('Scan QR'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF0A6EBD),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            // TODO: implement forgot PIN logic
+                          },
+                          child: const Text('Forgot your PIN?'),
+                        ),
+                      ],
                     ),
                     // ✅ ADDED: debug box shown only on error
                     if (_debugInfo.isNotEmpty)

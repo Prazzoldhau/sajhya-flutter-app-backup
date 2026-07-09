@@ -97,6 +97,29 @@ class ApiService {
     return cookies.map((c) => '${c.name}=${c.value}').join(', ');
   }
 
+  Future<Map<String, dynamic>> qrLogin(String qrToken) async {
+    try {
+      final response = await _dio.post(
+        '/api/qr-login/',
+        data: {'qr_token': qrToken},
+      );
+      final rawBody = response.data as String;
+      dynamic parsed;
+      try {
+        parsed = jsonDecode(rawBody);
+      } catch (_) {
+        throw Exception('Unexpected response from server');
+      }
+      if (parsed is Map<String, dynamic>) return parsed;
+      throw Exception('Unexpected response format');
+    } on DioException catch (e) {
+      if (e.response != null) {
+        throw Exception('QR login failed (${e.response?.statusCode})');
+      }
+      throw Exception('Network error: ${e.message}');
+    }
+  }
+
   Future<void> submitFeedback(int exerciseId, String feedbackType, String note) async {
     try {
       final response = await _dio.post(
