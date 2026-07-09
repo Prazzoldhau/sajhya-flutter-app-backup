@@ -14,7 +14,8 @@ class QRScannerScreen extends StatefulWidget {
 enum _PermissionState { checking, granted, denied, permanentlyDenied }
 
 class _QRScannerScreenState extends State<QRScannerScreen> {
-  final MobileScannerController _controller = MobileScannerController();
+  // Created lazily only after permission is confirmed — avoids generic camera error
+  MobileScannerController? _controller;
   _PermissionState _permission = _PermissionState.checking;
   bool _processing = false;
 
@@ -26,15 +27,22 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   Future<void> _requestCamera() async {
     final status = await Permission.camera.request();
     if (!mounted) return;
+
     if (status.isGranted) {
-      setState(() => _permission = _PermissionState.granted);
+      setState(() {
+        _permission = _PermissionState.granted;
+        _controller = MobileScannerController(
+          detectionSpeed: DetectionSpeed.normal,
+          facing: CameraFacing.back,
+        );
+      });
     } else if (status.isPermanentlyDenied) {
       setState(() => _permission = _PermissionState.permanentlyDenied);
     } else {
@@ -48,7 +56,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     if (token == null || token.isEmpty) return;
 
     setState(() => _processing = true);
-    await _controller.stop();
+    await _controller?.stop();
 
     try {
       final api = ApiService();
@@ -65,7 +73,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString()), backgroundColor: Colors.redAccent),
       );
-      await _controller.start();
+      await _controller?.start();
       setState(() => _processing = false);
     }
   }
@@ -82,7 +90,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           if (_permission == _PermissionState.granted)
             IconButton(
               icon: const Icon(Icons.flash_on),
-              onPressed: () => _controller.toggleTorch(),
+              onPressed: () => _controller?.toggleTorch(),
             ),
         ],
       ),
@@ -98,15 +106,37 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
   }
 
   Widget _buildScanner() {
+    final ctrl = _controller;
+    if (ctrl == null) return const SizedBox.shrink();
+
     return Stack(
       children: [
         MobileScanner(
-          controller: _controller,
+          controller: ctrl,
           onDetect: _onDetect,
           errorBuilder: (context, error, child) => Center(
-            child: Text(
-              'Camera error: ${error.errorCode.name}',
-              style: const TextStyle(color: Colors.white),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.camera_alt, color: Colors.white54, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Could not open camera\n(${error.errorCode.name})',
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () async {
+                      await ctrl.stop();
+                      await ctrl.start();
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
