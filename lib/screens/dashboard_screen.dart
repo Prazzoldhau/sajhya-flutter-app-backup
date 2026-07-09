@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
 import '../widgets/custom_card.dart';
+import 'login_screen.dart';
 import 'marketplace_screen.dart';
 import 'physio_contact_screen.dart';
 
@@ -101,7 +102,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: const Icon(Icons.logout, color: Colors.white70, size: 20),
             onPressed: () async {
               await ApiService().logout();
-              if (mounted) Navigator.pushReplacementNamed(context, '/');
+              if (mounted) Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
             },
           ),
         ],
