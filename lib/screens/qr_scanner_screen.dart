@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:permission_handler/permission_handler.dart';
 import '../services/api_service.dart';
 import 'dashboard_screen.dart';
 
@@ -11,43 +10,29 @@ class QRScannerScreen extends StatefulWidget {
   State<QRScannerScreen> createState() => _QRScannerScreenState();
 }
 
-enum _PermissionState { checking, granted, denied, permanentlyDenied }
-
 class _QRScannerScreenState extends State<QRScannerScreen> {
-  // Created lazily only after permission is confirmed — avoids generic camera error
-  MobileScannerController? _controller;
-  _PermissionState _permission = _PermissionState.checking;
+  MobileScannerController _controller = MobileScannerController(
+    facing: CameraFacing.back,
+    detectionSpeed: DetectionSpeed.normal,
+  );
   bool _processing = false;
 
   @override
-  void initState() {
-    super.initState();
-    _requestCamera();
-  }
-
-  @override
   void dispose() {
-    _controller?.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
-  Future<void> _requestCamera() async {
-    final status = await Permission.camera.request();
-    if (!mounted) return;
-
-    if (status.isGranted) {
-      setState(() {
-        _permission = _PermissionState.granted;
-        _controller = MobileScannerController(
-          detectionSpeed: DetectionSpeed.normal,
-          facing: CameraFacing.back,
-        );
-      });
-    } else if (status.isPermanentlyDenied) {
-      setState(() => _permission = _PermissionState.permanentlyDenied);
-    } else {
-      setState(() => _permission = _PermissionState.denied);
-    }
+  // Recreate controller completely on retry — stop/start on a failed controller doesn't work
+  void _retry() {
+    setState(() {
+      _controller.dispose();
+      _controller = MobileScannerController(
+        facing: CameraFacing.back,
+        detectionSpeed: DetectionSpeed.normal,
+      );
+      _processing = false;
+    });
   }
 
   Future<void> _onDetect(BarcodeCapture capture) async {
@@ -56,13 +41,12 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     if (token == null || token.isEmpty) return;
 
     setState(() => _processing = true);
-    await _controller?.stop();
+    await _controller.stop();
 
     try {
       final api = ApiService();
       await api.init();
       final result = await api.qrLogin(token);
-
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
@@ -73,7 +57,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString()), backgroundColor: Colors.redAccent),
       );
-      await _controller?.start();
+      await _controller.start();
       setState(() => _processing = false);
     }
   }
@@ -87,92 +71,53 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          if (_permission == _PermissionState.granted)
-            IconButton(
-              icon: const Icon(Icons.flash_on),
-              onPressed: () => _controller?.toggleTorch(),
-            ),
+          IconButton(
+            icon: const Icon(Icons.flash_on),
+            onPressed: () => _controller.toggleTorch(),
+          ),
         ],
       ),
-      body: switch (_permission) {
-        _PermissionState.checking => const Center(
-            child: CircularProgressIndicator(color: Colors.white),
-          ),
-        _PermissionState.granted => _buildScanner(),
-        _PermissionState.denied => _buildDenied(permanent: false),
-        _PermissionState.permanentlyDenied => _buildDenied(permanent: true),
-      },
-    );
-  }
-
-  Widget _buildScanner() {
-    final ctrl = _controller;
-    if (ctrl == null) return const SizedBox.shrink();
-
-    return Stack(
-      children: [
-        MobileScanner(
-          controller: ctrl,
-          onDetect: _onDetect,
-          errorBuilder: (context, error, child) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.camera_alt, color: Colors.white54, size: 48),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Could not open camera\n(${error.errorCode.name})',
-                    style: const TextStyle(color: Colors.white70, fontSize: 14),
-                    textAlign: TextAlign.center,
+      body: Stack(
+        children: [
+          MobileScanner(
+            key: ValueKey(_controller),
+            controller: _controller,
+            onDetect: _onDetect,
+            errorBuilder: (context, error, child) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.camera_alt, color: Colors.white54, size: 64),
+                      const SizedBox(height: 16),
+                      Text(
+                        error.errorCode == MobileScannerErrorCode.permissionDenied
+                            ? 'Camera permission denied.\nPlease allow camera access in your phone settings.'
+                            : 'Could not open camera.\nError: ${error.errorCode.name}',
+                        style: const TextStyle(color: Colors.white70, fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: _retry,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () async {
-                      await ctrl.stop();
-                      await ctrl.start();
-                    },
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
-        ),
-        CustomPaint(
-          painter: _ScanOverlayPainter(),
-          child: const SizedBox.expand(),
-        ),
-        if (_processing)
-          const Center(child: CircularProgressIndicator(color: Colors.white)),
-      ],
-    );
-  }
-
-  Widget _buildDenied({required bool permanent}) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.no_photography, color: Colors.white54, size: 64),
-            const SizedBox(height: 20),
-            Text(
-              permanent
-                  ? 'Camera access is blocked.\nPlease enable it in Settings.'
-                  : 'Camera permission is required\nto scan the QR code.',
-              style: const TextStyle(color: Colors.white70, fontSize: 15),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: permanent ? openAppSettings : _requestCamera,
-              child: Text(permanent ? 'Open Settings' : 'Allow Camera'),
-            ),
-          ],
-        ),
+          CustomPaint(
+            painter: _ScanOverlayPainter(),
+            child: const SizedBox.expand(),
+          ),
+          if (_processing)
+            const Center(child: CircularProgressIndicator(color: Colors.white)),
+        ],
       ),
     );
   }
@@ -202,7 +147,6 @@ class _ScanOverlayPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     const bl = 24.0;
     final r = cutoutRect;
-
     canvas.drawLine(r.topLeft, r.topLeft.translate(bl, 0), bracketPaint);
     canvas.drawLine(r.topLeft, r.topLeft.translate(0, bl), bracketPaint);
     canvas.drawLine(r.topRight, r.topRight.translate(-bl, 0), bracketPaint);
