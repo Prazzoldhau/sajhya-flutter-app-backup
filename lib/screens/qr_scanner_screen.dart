@@ -11,10 +11,7 @@ class QRScannerScreen extends StatefulWidget {
 }
 
 class _QRScannerScreenState extends State<QRScannerScreen> {
-  MobileScannerController _controller = MobileScannerController(
-    facing: CameraFacing.back,
-    detectionSpeed: DetectionSpeed.normal,
-  );
+  final MobileScannerController _controller = MobileScannerController();
   bool _processing = false;
 
   @override
@@ -23,25 +20,13 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     super.dispose();
   }
 
-  // Recreate controller completely on retry — stop/start on a failed controller doesn't work
-  void _retry() {
-    setState(() {
-      _controller.dispose();
-      _controller = MobileScannerController(
-        facing: CameraFacing.back,
-        detectionSpeed: DetectionSpeed.normal,
-      );
-      _processing = false;
-    });
-  }
-
-  Future<void> _onDetect(BarcodeCapture capture) async {
+  void _onDetect(BarcodeCapture capture) async {
     if (_processing) return;
-    final token = capture.barcodes.firstOrNull?.rawValue;
+    final String? token = capture.barcodes.firstOrNull?.rawValue;
     if (token == null || token.isEmpty) return;
 
     setState(() => _processing = true);
-    await _controller.stop();
+    _controller.stop();
 
     try {
       final api = ApiService();
@@ -57,7 +42,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString()), backgroundColor: Colors.redAccent),
       );
-      await _controller.start();
+      _controller.start();
       setState(() => _processing = false);
     }
   }
@@ -69,51 +54,56 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       appBar: AppBar(
         title: const Text('Scan QR Code', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.flash_on),
+            icon: ValueListenableBuilder(
+              valueListenable: _controller,
+              builder: (context, state, child) {
+                return Icon(
+                  state.torchState == TorchState.on
+                      ? Icons.flash_on
+                      : Icons.flash_off,
+                );
+              },
+            ),
             onPressed: () => _controller.toggleTorch(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.cameraswitch),
+            onPressed: () => _controller.switchCamera(),
           ),
         ],
       ),
       body: Stack(
+        fit: StackFit.expand,
         children: [
           MobileScanner(
-            key: ValueKey(_controller),
             controller: _controller,
             onDetect: _onDetect,
-            errorBuilder: (context, error, child) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.camera_alt, color: Colors.white54, size: 64),
-                      const SizedBox(height: 16),
-                      Text(
-                        error.errorCode == MobileScannerErrorCode.permissionDenied
-                            ? 'Camera permission denied.\nPlease allow camera access in your phone settings.'
-                            : 'Could not open camera.\nError: ${error.errorCode.name}',
-                        style: const TextStyle(color: Colors.white70, fontSize: 14),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: _retry,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
           ),
-          CustomPaint(
-            painter: _ScanOverlayPainter(),
-            child: const SizedBox.expand(),
+          // Scan window outline
+          IgnorePointer(
+            child: Center(
+              child: Container(
+                width: 260,
+                height: 260,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.white70, width: 2),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+          ),
+          const Positioned(
+            bottom: 32,
+            left: 0,
+            right: 0,
+            child: Text(
+              'Point your camera at a QR code',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white70, fontSize: 14),
+            ),
           ),
           if (_processing)
             const Center(child: CircularProgressIndicator(color: Colors.white)),
@@ -123,52 +113,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
   }
 }
 
-class _ScanOverlayPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    const cutoutSize = 260.0;
-    final cutoutRect = Rect.fromCenter(
-      center: Offset(size.width / 2, size.height / 2 - 40),
-      width: cutoutSize,
-      height: cutoutSize,
-    );
-
-    final dimPaint = Paint()..color = Colors.black.withOpacity(0.55);
-    final path = Path()
-      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
-      ..addRRect(RRect.fromRectAndRadius(cutoutRect, const Radius.circular(12)))
-      ..fillType = PathFillType.evenOdd;
-    canvas.drawPath(path, dimPaint);
-
-    final bracketPaint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    const bl = 24.0;
-    final r = cutoutRect;
-    canvas.drawLine(r.topLeft, r.topLeft.translate(bl, 0), bracketPaint);
-    canvas.drawLine(r.topLeft, r.topLeft.translate(0, bl), bracketPaint);
-    canvas.drawLine(r.topRight, r.topRight.translate(-bl, 0), bracketPaint);
-    canvas.drawLine(r.topRight, r.topRight.translate(0, bl), bracketPaint);
-    canvas.drawLine(r.bottomLeft, r.bottomLeft.translate(bl, 0), bracketPaint);
-    canvas.drawLine(r.bottomLeft, r.bottomLeft.translate(0, -bl), bracketPaint);
-    canvas.drawLine(r.bottomRight, r.bottomRight.translate(-bl, 0), bracketPaint);
-    canvas.drawLine(r.bottomRight, r.bottomRight.translate(0, -bl), bracketPaint);
-
-    final textPainter = TextPainter(
-      text: const TextSpan(
-        text: 'Point at your patient QR code',
-        style: TextStyle(color: Colors.white70, fontSize: 14),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: size.width);
-    textPainter.paint(
-      canvas,
-      Offset((size.width - textPainter.width) / 2, cutoutRect.bottom + 20),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+// Dart <3.0 fallback — firstOrNull on List
+extension _FirstOrNull<T> on List<T> {
+  T? get firstOrNull => isEmpty ? null : first;
 }
